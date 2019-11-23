@@ -1,3 +1,4 @@
+//ieee754add.fpadd_testbench
 module fpadd_testbench();
 	logic clk, reset;
 	logic [31:0] a, b, s, sexpected;
@@ -27,7 +28,7 @@ module fpadd_testbench();
 	always @(negedge clk)
 		if (~reset) begin // skip during reset
 			if (s !== sexpected) begin // check result
-				$display("Error: inputs = %b + %b", a, b);
+				$display("Error in test %d: inputs = %b + %b", vectornum + 1, a, b);
 				$display(" outputs = %b (%b expected)", s, sexpected);
 				errors = errors + 1;
 			end

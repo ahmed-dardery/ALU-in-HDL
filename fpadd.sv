@@ -3,6 +3,9 @@
 module fpadd(input logic [31:0] A,B,
 				output logic [31:0] S);
 				
+	logic handled;
+	logic [31:0] S_math, S_infnan;
+	
 	logic [7:0] exp_A, exp_B, exp_initial, exp_S, shift;
 	
 	//three extra bits : implicit one and room for two's complement
@@ -15,7 +18,7 @@ module fpadd(input logic [31:0] A,B,
 	assign {neg_A, neg_B} = {A[31], B[31]};
 	assign {exp_A, exp_B} = {A[30:23], B[30:23]};
 	
-
+	
 	expcomp expcomp1(exp_A, exp_B, A_less_B, exp_initial, shift);
 	shiftmant shiftmant1(A_less_B, mant_A, mant_B, shift, mant_shifted);
 	sign sign1(A_less_B, neg_A, neg_B, neg_shifted);
@@ -28,7 +31,36 @@ module fpadd(input logic [31:0] A,B,
 		mant_A, mant_B, mant_shifted,
 		mant_S, exp_S, neg_S);
 		
-	normalization normalization1(neg_S, exp_S, mant_S, S);
+	normalization normalization1(neg_S, exp_S, mant_S, S_math);
+	inf_nan inf_nan1(A,B,S_infnan,handled);
+	
+	assign S = handled ? S_infnan : S_math;
+endmodule
+
+module inf_nan(input logic[31:0] A,B, output logic[31:0] S, output logic handled);
+	parameter nan     = 32'b1_11111111_10000000000000000000000;
+	
+	logic specialexp_A, specialexp_B;
+	logic nan_A, nan_B;
+	logic neg_A, neg_B; 
+	assign {neg_A, specialexp_A, nan_A} = {A[31], &A[30:23], |A[22:0]};
+	assign {neg_B, specialexp_B, nan_B} = {B[31], &B[30:23], |B[22:0]};
+	
+	assign handled = specialexp_A | specialexp_B;
+	
+	always_comb
+		if (handled) begin
+			//if A is nan or the only inf
+			if (specialexp_A && (nan_A | ~specialexp_B) ) S = A;
+			//if B is nan or the only inf.
+			else if (specialexp_B && (nan_B | ~specialexp_A) ) S = B;
+			//both different sign inf
+			else if (neg_A ^ neg_B) S = nan;
+			//same sign inf.
+			else S = A;
+		end
+		else
+			S <= 32'bx;
 endmodule
 
 module sign(input logic A_less_B, neg_A, neg_B, output logic neg_shifted);
@@ -54,10 +86,10 @@ module expcomp(input logic[7:0] exp_A, exp_B,
 				output logic A_less_B,
 				output logic[7:0] exp_S, shift);
 	
-	logic[7:0] A_minus_B, B_minus_A;
+	logic[8:0] A_minus_B, B_minus_A;
 	assign A_minus_B = exp_A - exp_B;
 	assign B_minus_A = exp_B - exp_A;
-	assign A_less_B = A_minus_B[7];
+	assign A_less_B = A_minus_B[8];
 	
 	always_comb
 		if (A_less_B) begin
