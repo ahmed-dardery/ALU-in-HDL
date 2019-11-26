@@ -64,7 +64,7 @@ always_comb begin
     assign N = y[15];    //two's complement
     assign Z = (realAns == 0); // because maybe answer = 10000000000000000 so c will not see the last 1
     assign C = realAns[16];
-    assign V = (!(a[15]^b[15] & selection = ADD) & ((realAns != y)|(y[15]^a[15])))|((realAns != y & selection != ADD));
+    assign V = ((!(a[15]^b[15]) & selection == ADD) & (($signed(realAns) != $signed(y))|(y[15]^a[15])))|((($signed(realAns) != $signed(y) & selection != ADD  & selection != INVERT)));
     assign E = (a == b);
     assign L = ($signed(a) < $signed(b));
 endmodule
